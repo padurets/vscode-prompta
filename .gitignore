@@ -1,0 +1,21 @@
+# Ignore everything
+*
+
+# Allow project files
+!.gitignore
+!.vscodeignore
+!.vscode/
+!.vscode/**
+
+!package.json
+!package-lock.json
+!tsconfig.json
+!LICENSE
+!README.md
+!CHANGELOG.md
+
+!src/
+!src/**
+
+!assets/
+!assets/**
