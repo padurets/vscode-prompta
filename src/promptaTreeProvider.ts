@@ -20,7 +20,7 @@ export class PromptItem extends vscode.TreeItem {
       this.contextValue = 'file';
       this.iconPath = vscode.ThemeIcon.File;
       this.command = {
-        command: 'prompta.openInEditor',
+        command: 'prompta.openInPane',
         title: 'Open Prompt',
         arguments: [resourceUri],
       };
@@ -122,7 +122,7 @@ export class PromptsTreeProvider
     try {
       const entries = fs.readdirSync(folderPath, { withFileTypes: true });
       const items: PromptItem[] = entries
-        .filter((e) => !e.name.startsWith('.'))
+        .filter((e) => !e.name.startsWith('.') && e.name !== 'prompta.env')
         .sort((a, b) => {
           if (a.isDirectory() && !b.isDirectory()) return -1;
           if (!a.isDirectory() && b.isDirectory()) return 1;
@@ -260,7 +260,7 @@ export class PromptsTreeProvider
     fs.writeFileSync(filePath, '', 'utf-8');
     this.refresh();
 
-    vscode.commands.executeCommand('prompta.openInEditor', vscode.Uri.file(filePath));
+    vscode.commands.executeCommand('prompta.openInPane', vscode.Uri.file(filePath));
   }
 
   async createFolder(targetItem?: PromptItem): Promise<void> {
