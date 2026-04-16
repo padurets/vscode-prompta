@@ -2,7 +2,7 @@
   "name": "prompta",
   "displayName": "Prompta",
   "description": "Organize and compose AI prompts with reusable variables",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "padurets",
   "license": "MIT",
   "repository": {
@@ -48,20 +48,15 @@
     "views": {
       "prompta": [
         {
-          "id": "promptaGlobalTreeView",
-          "name": "Global Prompts",
-          "icon": "$(globe)",
-          "contextualTitle": "Global Prompts"
-        },
-        {
-          "id": "promptaProjectTreeView",
-          "name": "Project Prompts",
-          "icon": "$(root-folder)",
-          "contextualTitle": "Project Prompts"
+          "id": "promptaPromptsView",
+          "name": "Prompt Explorer",
+          "icon": "$(notebook)",
+          "contextualTitle": "Prompt Explorer"
         },
         {
           "id": "promptaInspectorView",
           "name": "Prompt Inspector",
+          "icon": "$(notebook)",
           "type": "webview",
           "contextualTitle": "Prompt Inspector"
         }
@@ -69,58 +64,28 @@
     },
     "viewsWelcome": [
       {
-        "view": "promptaGlobalTreeView",
-        "contents": "[Create Prompt](command:prompta.global.newFile)\n[Create Folder](command:prompta.global.newFolder)"
-      },
-      {
-        "view": "promptaProjectTreeView",
-        "contents": "[Create Prompt](command:prompta.project.newFile)\n[Create Folder](command:prompta.project.newFolder)"
+        "view": "promptaPromptsView",
+        "contents": "[Create Prompt](command:prompta.newFile)\n[Create Folder](command:prompta.newFolder)"
       }
     ],
     "commands": [
       {
-        "command": "prompta.global.newFile",
-        "title": "New Global Prompt",
+        "command": "prompta.newFile",
+        "title": "New Prompt",
         "category": "Prompta",
         "icon": "$(new-file)"
       },
       {
-        "command": "prompta.global.newFolder",
+        "command": "prompta.newFolder",
         "title": "New Folder",
+        "category": "Prompta",
         "icon": "$(new-folder)"
       },
       {
-        "command": "prompta.global.refresh",
+        "command": "prompta.refresh",
         "title": "Refresh",
+        "category": "Prompta",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "prompta.global.setFolder",
-        "title": "Set Global Prompts Folder",
-        "category": "Prompta",
-        "icon": "$(folder-opened)"
-      },
-      {
-        "command": "prompta.project.newFile",
-        "title": "New Project Prompt",
-        "category": "Prompta",
-        "icon": "$(new-file)"
-      },
-      {
-        "command": "prompta.project.newFolder",
-        "title": "New Folder",
-        "icon": "$(new-folder)"
-      },
-      {
-        "command": "prompta.project.refresh",
-        "title": "Refresh",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "prompta.project.setFolder",
-        "title": "Set Project Prompts Folder",
-        "category": "Prompta",
-        "icon": "$(folder-opened)"
       },
       {
         "command": "prompta.rename",
@@ -150,9 +115,50 @@
         "title": "Open"
       },
       {
+        "command": "prompta.openInInspector",
+        "title": "Open in Inspector",
+        "category": "Prompta",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "prompta.editFile",
+        "title": "Edit",
+        "category": "Prompta",
+        "icon": "$(edit)"
+      },
+      {
         "command": "prompta.toggleSidebar",
         "title": "Toggle Sidebar",
         "category": "Prompta"
+      },
+      {
+        "command": "prompta.setDefaultGlobalFolder",
+        "title": "Set Default Global Prompts Folder",
+        "category": "Prompta",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "prompta.addGlobalFolder",
+        "title": "Add Global Folder...",
+        "category": "Prompta",
+        "icon": "$(add)"
+      },
+      {
+        "command": "prompta.addWorkspaceFolder",
+        "title": "Add Workspace Folder...",
+        "category": "Prompta",
+        "icon": "$(add)"
+      },
+      {
+        "command": "prompta.renameSection",
+        "title": "Rename",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "prompta.removeSection",
+        "title": "Remove Folder",
+        "category": "Prompta",
+        "icon": "$(remove)"
       },
       {
         "command": "prompta.editGlobalEnv",
@@ -207,22 +213,29 @@
         "title": "Save All to Project",
         "category": "Prompta",
         "icon": "$(save-all)"
+      },
+      {
+        "command": "prompta.inspector.pin",
+        "title": "Pin Inspector",
+        "category": "Prompta",
+        "icon": "$(pin)"
+      },
+      {
+        "command": "prompta.inspector.unpin",
+        "title": "Unpin Inspector",
+        "category": "Prompta",
+        "icon": "$(pinned)"
       }
     ],
     "submenus": [
       {
+        "id": "prompta.treeMenu",
+        "label": "More Actions",
+        "icon": "$(ellipsis)"
+      },
+      {
         "id": "prompta.inspectorMenu",
         "label": "Prompt Inspector Actions",
-        "icon": "$(ellipsis)"
-      },
-      {
-        "id": "prompta.globalTreeMenu",
-        "label": "More Actions",
-        "icon": "$(ellipsis)"
-      },
-      {
-        "id": "prompta.projectTreeMenu",
-        "label": "More Actions",
         "icon": "$(ellipsis)"
       }
     ],
@@ -232,31 +245,23 @@
           "command": "prompta.toggleSidebar"
         },
         {
-          "command": "prompta.global.setFolder"
+          "command": "prompta.setDefaultGlobalFolder"
         },
         {
-          "command": "prompta.project.setFolder"
+          "command": "prompta.addGlobalFolder"
         },
         {
-          "command": "prompta.global.newFile"
+          "command": "prompta.addWorkspaceFolder"
         },
         {
-          "command": "prompta.global.newFolder",
+          "command": "prompta.newFile"
+        },
+        {
+          "command": "prompta.newFolder",
           "when": "false"
         },
         {
-          "command": "prompta.global.refresh",
-          "when": "false"
-        },
-        {
-          "command": "prompta.project.newFile"
-        },
-        {
-          "command": "prompta.project.newFolder",
-          "when": "false"
-        },
-        {
-          "command": "prompta.project.refresh",
+          "command": "prompta.refresh",
           "when": "false"
         },
         {
@@ -282,38 +287,57 @@
         {
           "command": "prompta.openFileInMainEditor",
           "when": "false"
+        },
+        {
+          "command": "prompta.openInInspector",
+          "when": "false"
+        },
+        {
+          "command": "prompta.editFile",
+          "when": "false"
+        },
+        {
+          "command": "prompta.renameSection",
+          "when": "false"
+        },
+        {
+          "command": "prompta.removeSection",
+          "when": "false"
+        },
+        {
+          "command": "prompta.inspector.pin",
+          "when": "false"
+        },
+        {
+          "command": "prompta.inspector.unpin",
+          "when": "false"
         }
       ],
       "view/title": [
         {
-          "command": "prompta.global.newFile",
-          "when": "view == promptaGlobalTreeView",
+          "command": "prompta.newFile",
+          "when": "view == promptaPromptsView",
           "group": "navigation@1"
         },
         {
-          "command": "prompta.global.newFolder",
-          "when": "view == promptaGlobalTreeView",
+          "command": "prompta.newFolder",
+          "when": "view == promptaPromptsView",
           "group": "navigation@2"
         },
         {
-          "submenu": "prompta.globalTreeMenu",
-          "when": "view == promptaGlobalTreeView",
+          "submenu": "prompta.treeMenu",
+          "when": "view == promptaPromptsView",
           "group": "navigation@3"
         },
         {
-          "command": "prompta.project.newFile",
-          "when": "view == promptaProjectTreeView",
-          "group": "navigation@1"
+          "command": "prompta.inspector.pin",
+          "when": "view == promptaInspectorView && !prompta.inspectorPinned",
+          "group": "navigation@0"
         },
         {
-          "command": "prompta.project.newFolder",
-          "when": "view == promptaProjectTreeView",
-          "group": "navigation@2"
-        },
-        {
-          "submenu": "prompta.projectTreeMenu",
-          "when": "view == promptaProjectTreeView",
-          "group": "navigation@3"
+          "command": "prompta.inspector.unpin",
+          "when": "view == promptaInspectorView && prompta.inspectorPinned",
+          "group": "navigation@0"
         },
         {
           "command": "prompta.copyWithSubstitutions",
@@ -326,24 +350,22 @@
           "group": "navigation@2"
         }
       ],
-      "prompta.globalTreeMenu": [
+      "prompta.treeMenu": [
         {
-          "command": "prompta.global.refresh",
+          "command": "prompta.refresh",
           "group": "1_main@1"
         },
         {
-          "command": "prompta.global.setFolder",
-          "group": "1_main@2"
-        }
-      ],
-      "prompta.projectTreeMenu": [
-        {
-          "command": "prompta.project.refresh",
-          "group": "1_main@1"
+          "command": "prompta.addGlobalFolder",
+          "group": "2_folders@1"
         },
         {
-          "command": "prompta.project.setFolder",
-          "group": "1_main@2"
+          "command": "prompta.addWorkspaceFolder",
+          "group": "2_folders@2"
+        },
+        {
+          "command": "prompta.setDefaultGlobalFolder",
+          "group": "3_settings@1"
         }
       ],
       "prompta.inspectorMenu": [
@@ -382,83 +404,58 @@
       ],
       "view/item/context": [
         {
-          "command": "prompta.openFileInMainEditor",
-          "when": "view == promptaGlobalTreeView && viewItem == file",
+          "command": "prompta.editFile",
+          "when": "view == promptaPromptsView && viewItem == file",
+          "group": "inline@1"
+        },
+        {
+          "command": "prompta.editFile",
+          "when": "view == promptaPromptsView && viewItem == file",
           "group": "1_open@1"
         },
         {
-          "command": "prompta.global.newFile",
-          "when": "view == promptaGlobalTreeView",
+          "command": "prompta.openInInspector",
+          "when": "view == promptaPromptsView && viewItem == file",
+          "group": "1_open@2"
+        },
+        {
+          "command": "prompta.newFile",
+          "when": "view == promptaPromptsView && viewItem =~ /^(section|section-custom|folder)$/",
           "group": "2_new@1"
         },
         {
-          "command": "prompta.global.newFolder",
-          "when": "view == promptaGlobalTreeView",
+          "command": "prompta.newFolder",
+          "when": "view == promptaPromptsView && viewItem =~ /^(section|section-custom|folder)$/",
           "group": "2_new@2"
         },
         {
           "command": "prompta.copyPath",
-          "when": "view == promptaGlobalTreeView",
+          "when": "view == promptaPromptsView && viewItem =~ /^(file|folder)$/",
           "group": "3_copy@1"
         },
         {
           "command": "prompta.copyRelativePath",
-          "when": "view == promptaGlobalTreeView",
+          "when": "view == promptaPromptsView && viewItem =~ /^(file|folder)$/",
           "group": "3_copy@2"
         },
         {
-          "command": "prompta.editGlobalEnv",
-          "when": "view == promptaGlobalTreeView",
-          "group": "4_vars@1"
-        },
-        {
           "command": "prompta.rename",
-          "when": "view == promptaGlobalTreeView",
+          "when": "view == promptaPromptsView && viewItem =~ /^(file|folder)$/",
           "group": "9_edit@1"
         },
         {
           "command": "prompta.delete",
-          "when": "view == promptaGlobalTreeView",
+          "when": "view == promptaPromptsView && viewItem =~ /^(file|folder)$/",
           "group": "9_edit@2"
         },
         {
-          "command": "prompta.openFileInMainEditor",
-          "when": "view == promptaProjectTreeView && viewItem == file",
-          "group": "1_open@1"
-        },
-        {
-          "command": "prompta.project.newFile",
-          "when": "view == promptaProjectTreeView",
-          "group": "2_new@1"
-        },
-        {
-          "command": "prompta.project.newFolder",
-          "when": "view == promptaProjectTreeView",
-          "group": "2_new@2"
-        },
-        {
-          "command": "prompta.copyPath",
-          "when": "view == promptaProjectTreeView",
-          "group": "3_copy@1"
-        },
-        {
-          "command": "prompta.copyRelativePath",
-          "when": "view == promptaProjectTreeView",
-          "group": "3_copy@2"
-        },
-        {
-          "command": "prompta.editProjectEnv",
-          "when": "view == promptaProjectTreeView",
-          "group": "4_vars@1"
-        },
-        {
-          "command": "prompta.rename",
-          "when": "view == promptaProjectTreeView",
+          "command": "prompta.renameSection",
+          "when": "view == promptaPromptsView && viewItem == section-custom",
           "group": "9_edit@1"
         },
         {
-          "command": "prompta.delete",
-          "when": "view == promptaProjectTreeView",
+          "command": "prompta.removeSection",
+          "when": "view == promptaPromptsView && viewItem == section-custom",
           "group": "9_edit@2"
         }
       ]
@@ -467,7 +464,7 @@
       {
         "command": "prompta.openFileInMainEditor",
         "key": "alt+enter",
-        "when": "focusedView == promptaGlobalTreeView || focusedView == promptaProjectTreeView"
+        "when": "focusedView == promptaPromptsView"
       }
     ],
     "configuration": {
@@ -478,10 +475,32 @@
           "default": "",
           "description": "Absolute path to the global prompts folder. If empty, defaults to ~/Prompta/prompts."
         },
+        "prompta.folders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name for this folder"
+              },
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the folder"
+              }
+            },
+            "required": [
+              "name",
+              "path"
+            ]
+          },
+          "default": [],
+          "description": "Additional prompt folders. Add to User Settings for all workspaces, or Workspace Settings for the current workspace only."
+        },
         "prompta.projectFolder": {
           "type": "string",
           "default": ".prompta",
-          "description": "Relative path (from workspace root) to the project prompts folder."
+          "description": "Relative path (from workspace root) used for project-scoped variables (prompta.env). Does not create a tree section."
         },
         "prompta.fontSize": {
           "type": "number",

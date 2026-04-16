@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.3.0 — 2026-04-17
+
+### Changed
+
+- **Unified Prompt Explorer.** The separate Global Prompts and Project Prompts trees have been merged into a single "Prompt Explorer" view with collapsible sections.
+- **Section-based architecture.** Each prompt folder is now represented as a named section (`Global Prompts`, or a custom display name) with drag-and-drop reordering between sections.
+- File operations (`rename`, `move`, `delete`, `create`) now use non-blocking async I/O instead of synchronous calls.
+- `prompta.projectFolder` config changes now only reload variables, without unnecessary tree refresh.
+
+### Added
+
+- **Custom folders.** Add any folder as a prompt section via `Add Global Folder...` / `Add Workspace Folder...` commands, with configurable display names.
+- **Section management** — rename and remove custom sections from the context menu.
+- **Pin / Unpin Inspector** — lock the inspector to a specific file so it doesn't follow the active editor.
+- **Open in Inspector** command — send any prompt file to the inspector without switching the editor.
+- Welcome content shown when the Prompt Explorer tree is empty.
+- `prompta.folders` configuration for declaring additional prompt folders in User or Workspace settings.
+
+### Removed
+
+- Separate `promptaGlobalTreeView` / `promptaProjectTreeView` views (replaced by unified `promptaPromptsView`).
+- Per-scope commands (`prompta.global.*`, `prompta.project.*`) replaced by unified commands.
+- `viewsWelcome` entries for the old split views.
+
+### Fixed / Improved
+
+- Hardened webview HTML escaping — `<` is now escaped to prevent potential `</script>` injection.
+- Section ordering is persisted via `globalState` and survives restarts.
+
 ## 0.2.0 — 2026-04-16
 
 ### Changed
