@@ -1,10 +1,18 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import type { VariablesRegistry } from './promptaVariables';
 
 type EnvSnapshot = {
   global: Record<string, string>;
   project: Record<string, string>;
 };
+
+type VarState = {
+  source: 'global' | 'project' | 'custom';
+  customValue: string;
+};
+
+type FileInspectorState = Map<string, VarState>;
 
 export type SaveTargetPicker = () => Promise<'global' | 'project' | undefined>;
 
@@ -16,6 +24,9 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   private _activeContent = '';
 
   private readonly _disposables: vscode.Disposable[] = [];
+  private readonly _fileStates = new Map<string, FileInspectorState>();
+  private _pinned = false;
+  private _onUnpinCallback?: () => void;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -28,6 +39,22 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   public dispose(): void {
     this._disposables.forEach((d) => d.dispose());
     this._disposables.length = 0;
+  }
+
+  public get pinned(): boolean {
+    return this._pinned;
+  }
+
+  public togglePin(): void {
+    this._pinned = !this._pinned;
+    vscode.commands.executeCommand('setContext', 'prompta.inspectorPinned', this._pinned);
+    if (!this._pinned) {
+      this._onUnpinCallback?.();
+    }
+  }
+
+  public onUnpin(callback: () => void): void {
+    this._onUnpinCallback = callback;
   }
 
   public resolveWebviewView(
@@ -54,6 +81,9 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
         case 'saveAll':
           void this._handleSaveAll(msg.target, msg.entries);
           break;
+        case 'stateChanged':
+          this._persistWebviewState(msg.states);
+          break;
       }
     });
 
@@ -62,6 +92,18 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     });
 
     this._render();
+  }
+
+  private _persistWebviewState(states: Record<string, { source: string; customValue: string }>): void {
+    if (!this._activeFilePath) return;
+    const stateMap = new Map<string, VarState>();
+    for (const [name, val] of Object.entries(states)) {
+      stateMap.set(name, {
+        source: val.source as VarState['source'],
+        customValue: val.customValue,
+      });
+    }
+    this._fileStates.set(this._activeFilePath, stateMap);
   }
 
   private async _handleSaveVar(name: string, value: string): Promise<void> {
@@ -81,12 +123,29 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   }
 
   public setActiveFile(filePath: string | undefined, content: string): void {
+    if (this._pinned) {
+      if (filePath === this._activeFilePath) {
+        this._activeContent = content;
+        this._view?.webview.postMessage({ type: 'contentUpdate', content });
+      }
+      return;
+    }
+
     const fileChanged = filePath !== this._activeFilePath;
     this._activeFilePath = filePath;
     this._activeContent = content;
     if (!this._view) return;
+
     if (fileChanged) {
-      this._render();
+      const savedState = filePath ? this._fileStates.get(filePath) : undefined;
+      const stateObj = savedState ? Object.fromEntries(savedState) : null;
+      const fileName = filePath ? path.basename(filePath) : '';
+      this._view.webview.postMessage({
+        type: 'fileSwitch',
+        content,
+        fileName,
+        savedState: stateObj,
+      });
     } else {
       this._view.webview.postMessage({ type: 'contentUpdate', content });
     }
@@ -121,17 +180,33 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     return vscode.workspace.getConfiguration('prompta').get<number>('fontSize', 14);
   }
 
+  private _savedStateJson(): string {
+    if (!this._activeFilePath) return 'null';
+    const state = this._fileStates.get(this._activeFilePath);
+    if (!state || state.size === 0) return 'null';
+    return JSON.stringify(Object.fromEntries(state));
+  }
+
   private _render(): void {
     if (!this._view) return;
     const hasFile = !!this._activeFilePath;
     const fontSize = this._getFontSize();
+    const fileName = this._activeFilePath ? path.basename(this._activeFilePath) : '';
 
     const content = this._activeContent
       .replace(/\\/g, '\\\\')
       .replace(/`/g, '\\`')
-      .replace(/\$/g, '\\$');
+      .replace(/\$/g, '\\$')
+      .replace(/</g, '\\x3c');
+
+    const escapedFileName = fileName
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$')
+      .replace(/</g, '\\x3c');
 
     const envJson = JSON.stringify(this._envSnapshot());
+    const savedStateJson = this._savedStateJson();
 
     this._view.webview.html = /*html*/ `<!DOCTYPE html>
 <html lang="en">
@@ -149,6 +224,16 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+  }
+
+  .file-header {
+    padding: 8px 12px 0;
+    font-size: 11px;
+    opacity: 0.6;
+    font-family: var(--vscode-font-family);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .inline-save-btn {
@@ -251,17 +336,20 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
 </style>
 </head>
 <body>
+  <div class="file-header" id="fileHeader" style="display: ${hasFile ? 'block' : 'none'}">
+    <span id="fileName"></span>
+  </div>
   <div class="body" id="body">
     ${hasFile ? '<div id="varsContainer"></div>' : '<div class="empty-state">Open a prompt to see variables.</div>'}
   </div>
 
 <script>
   const vscode = acquireVsCodeApi();
-  const hasFile = ${hasFile};
+  let hasFile = ${hasFile};
   let content = \`${content}\`;
   let env = ${envJson};
+  let savedState = ${savedStateJson};
 
-  // per-var state: { selectedSource: 'global'|'project'|'custom', customValue: string }
   const varStates = {};
 
   const GLOBE_SVG = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
@@ -281,11 +369,15 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   }
 
   function autoResize(ta) {
-    ta.style.height = 'auto';
-    const cs = getComputedStyle(ta);
-    const borderExtra = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
-    ta.style.height = (ta.scrollHeight + borderExtra) + 'px';
+    ta.style.height = '0';
+    ta.style.height = ta.scrollHeight + 'px';
   }
+
+  function autoResizeAll() {
+    document.querySelectorAll('.var-input').forEach(autoResize);
+  }
+
+  new ResizeObserver(() => autoResizeAll()).observe(document.body);
 
   function defaultSourceFor(name) {
     if (env.project[name] !== undefined) return 'project';
@@ -295,9 +387,15 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
 
   function ensureState(name) {
     if (!varStates[name]) {
-      varStates[name] = { selectedSource: defaultSourceFor(name), customValue: '' };
+      if (savedState && savedState[name]) {
+        varStates[name] = {
+          selectedSource: savedState[name].source,
+          customValue: savedState[name].customValue || ''
+        };
+      } else {
+        varStates[name] = { selectedSource: defaultSourceFor(name), customValue: '' };
+      }
     } else {
-      // If current source became unavailable (removed from env), fall back
       const s = varStates[name].selectedSource;
       if (s === 'project' && env.project[name] === undefined) varStates[name].selectedSource = env.global[name] !== undefined ? 'global' : 'custom';
       if (s === 'global' && env.global[name] === undefined) varStates[name].selectedSource = env.project[name] !== undefined ? 'project' : 'custom';
@@ -335,6 +433,15 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     return out;
   }
 
+  function notifyStateChanged() {
+    const states = {};
+    for (const name of Object.keys(varStates)) {
+      const st = varStates[name];
+      states[name] = { source: st.selectedSource, customValue: st.customValue };
+    }
+    vscode.postMessage({ type: 'stateChanged', states });
+  }
+
   function makeSrcBtn(kind, state, name) {
     const btn = document.createElement('button');
     btn.className = 'src-btn';
@@ -346,6 +453,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     btn.addEventListener('click', () => {
       state.selectedSource = kind;
       redrawRow(name);
+      notifyStateChanged();
     });
     return btn;
   }
@@ -414,6 +522,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
       state.customValue = input.value;
       autoResize(input);
       redrawRow(name);
+      notifyStateChanged();
     });
 
     row.appendChild(head);
@@ -468,7 +577,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
         row = createRow(name);
         ensureState(name);
       } else {
-        ensureState(name); // refresh state validity
+        ensureState(name);
       }
       if (container.children[idx] !== row) {
         container.insertBefore(row, container.children[idx] || null);
@@ -477,7 +586,14 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     });
   }
 
-  if (hasFile) syncVars();
+  // Initial render
+  if (hasFile) {
+    const el = document.getElementById('fileName');
+    if (el) el.textContent = \`${escapedFileName}\`;
+    syncVars();
+    notifyStateChanged();
+    requestAnimationFrame(autoResizeAll);
+  }
 
   function bulkSwitch(target) {
     const vars = extractVars(content);
@@ -492,6 +608,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
       }
       redrawRow(name);
     });
+    notifyStateChanged();
   }
 
   window.addEventListener('message', (e) => {
@@ -510,6 +627,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
         st.customValue = '';
         redrawRow(name);
       });
+      notifyStateChanged();
     } else if (msg.type === 'initiateCopy') {
       if (hasFile) vscode.postMessage({ type: 'copy', content: substituteVars(content) });
     } else if (msg.type === 'initiateSaveAll') {
@@ -517,6 +635,25 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
       if (entries.length) vscode.postMessage({ type: 'saveAll', target: msg.target, entries });
     } else if (msg.type === 'bulkSwitch') {
       bulkSwitch(msg.target);
+    } else if (msg.type === 'fileSwitch') {
+      content = msg.content;
+      savedState = msg.savedState;
+      for (const key of Object.keys(varStates)) {
+        delete varStates[key];
+      }
+      const fileNameEl = document.getElementById('fileName');
+      if (fileNameEl) fileNameEl.textContent = msg.fileName || '';
+      const fileHeader = document.getElementById('fileHeader');
+      if (fileHeader) fileHeader.style.display = msg.fileName ? 'block' : 'none';
+      hasFile = !!msg.fileName;
+      if (hasFile) {
+        syncVars();
+        notifyStateChanged();
+        requestAnimationFrame(autoResizeAll);
+      } else {
+        const body = document.getElementById('body');
+        body.innerHTML = '<div class="empty-state">Open a prompt to see variables.</div>';
+      }
     }
   });
 </script>
