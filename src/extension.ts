@@ -55,10 +55,10 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  vscode.commands.executeCommand('setContext', 'prompta.inspectorPinned', false);
+  vscode.commands.executeCommand('setContext', 'prompta.inspectorAutoPickup', inspector.autoPickup);
 
-  inspector.onUnpin(() => {
-    syncInspectorFromEditor(vscode.window.activeTextEditor);
+  inspector.onAutoPickupChanged((enabled) => {
+    if (enabled) syncInspectorFromEditor(vscode.window.activeTextEditor);
   });
 
   const INSPECTOR_SCHEMES = new Set(['file', 'untitled']);
@@ -110,18 +110,22 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('prompta.editFile', async (item?: any) => {
       const uri = resolveUriFromArg(item);
-      if (uri) await vscode.window.showTextDocument(uri, { preview: false });
+      if (!uri) return;
+      const doc = await vscode.workspace.openTextDocument(uri);
+      inspector.setActiveFile(uri.fsPath, doc.getText(), { explicit: true });
+      await vscode.window.showTextDocument(doc, { preview: false });
     }),
     vscode.commands.registerCommand('prompta.openInInspector', async (item?: any) => {
       const uri = resolveUriFromArg(item);
       if (!uri) return;
       const doc = await vscode.workspace.openTextDocument(uri);
-      inspector.setActiveFile(uri.fsPath, doc.getText());
+      inspector.setActiveFile(uri.fsPath, doc.getText(), { explicit: true });
     }),
     vscode.commands.registerCommand('prompta.openInPane', async (arg?: any) => {
       const uri = resolveUriFromArg(arg);
       if (!uri) return;
       const doc = await vscode.workspace.openTextDocument(uri);
+      inspector.setActiveFile(uri.fsPath, doc.getText(), { explicit: true });
       await vscode.window.showTextDocument(doc, {
         viewColumn: vscode.ViewColumn.One,
         preview: true,
@@ -172,14 +176,17 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('prompta.saveAllAsProject', () =>
       inspector.postToWebview({ type: 'initiateSaveAll', target: 'project' })
     ),
-    vscode.commands.registerCommand('prompta.inspector.pin', () => inspector.togglePin()),
-    vscode.commands.registerCommand('prompta.inspector.unpin', () => inspector.togglePin())
+    vscode.commands.registerCommand('prompta.inspector.enableAutoPickup', () => inspector.setAutoPickup(true)),
+    vscode.commands.registerCommand('prompta.inspector.disableAutoPickup', () => inspector.setAutoPickup(false))
   );
 
   // Sync inspector with active editor
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       syncInspectorFromEditor(editor);
+    }),
+    vscode.window.onDidChangeTextEditorSelection((e) => {
+      syncInspectorFromEditor(e.textEditor);
     }),
     vscode.workspace.onDidChangeTextDocument((e) => {
       const active = vscode.window.activeTextEditor;

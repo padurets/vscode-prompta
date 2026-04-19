@@ -2,7 +2,7 @@
   "name": "prompta",
   "displayName": "Prompta",
   "description": "Organize and compose AI prompts with reusable variables",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "padurets",
   "license": "MIT",
   "repository": {
@@ -215,16 +215,16 @@
         "icon": "$(save-all)"
       },
       {
-        "command": "prompta.inspector.pin",
-        "title": "Pin Inspector",
+        "command": "prompta.inspector.enableAutoPickup",
+        "title": "Enable Auto-Pickup of Opened Files",
         "category": "Prompta",
-        "icon": "$(pin)"
+        "icon": "$(sync-ignored)"
       },
       {
-        "command": "prompta.inspector.unpin",
-        "title": "Unpin Inspector",
+        "command": "prompta.inspector.disableAutoPickup",
+        "title": "Disable Auto-Pickup of Opened Files",
         "category": "Prompta",
-        "icon": "$(pinned)"
+        "icon": "$(sync)"
       }
     ],
     "submenus": [
@@ -305,11 +305,11 @@
           "when": "false"
         },
         {
-          "command": "prompta.inspector.pin",
+          "command": "prompta.inspector.enableAutoPickup",
           "when": "false"
         },
         {
-          "command": "prompta.inspector.unpin",
+          "command": "prompta.inspector.disableAutoPickup",
           "when": "false"
         }
       ],
@@ -330,13 +330,13 @@
           "group": "navigation@3"
         },
         {
-          "command": "prompta.inspector.pin",
-          "when": "view == promptaInspectorView && !prompta.inspectorPinned",
+          "command": "prompta.inspector.enableAutoPickup",
+          "when": "view == promptaInspectorView && !prompta.inspectorAutoPickup",
           "group": "navigation@0"
         },
         {
-          "command": "prompta.inspector.unpin",
-          "when": "view == promptaInspectorView && prompta.inspectorPinned",
+          "command": "prompta.inspector.disableAutoPickup",
+          "when": "view == promptaInspectorView && prompta.inspectorAutoPickup",
           "group": "navigation@0"
         },
         {

@@ -25,8 +25,8 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
 
   private readonly _disposables: vscode.Disposable[] = [];
   private readonly _fileStates = new Map<string, FileInspectorState>();
-  private _pinned = false;
-  private _onUnpinCallback?: () => void;
+  private _autoPickup = true;
+  private _onAutoPickupChangedCallback?: (enabled: boolean) => void;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -41,20 +41,19 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     this._disposables.length = 0;
   }
 
-  public get pinned(): boolean {
-    return this._pinned;
+  public get autoPickup(): boolean {
+    return this._autoPickup;
   }
 
-  public togglePin(): void {
-    this._pinned = !this._pinned;
-    vscode.commands.executeCommand('setContext', 'prompta.inspectorPinned', this._pinned);
-    if (!this._pinned) {
-      this._onUnpinCallback?.();
-    }
+  public setAutoPickup(enabled: boolean): void {
+    if (this._autoPickup === enabled) return;
+    this._autoPickup = enabled;
+    vscode.commands.executeCommand('setContext', 'prompta.inspectorAutoPickup', this._autoPickup);
+    this._onAutoPickupChangedCallback?.(this._autoPickup);
   }
 
-  public onUnpin(callback: () => void): void {
-    this._onUnpinCallback = callback;
+  public onAutoPickupChanged(callback: (enabled: boolean) => void): void {
+    this._onAutoPickupChangedCallback = callback;
   }
 
   public resolveWebviewView(
@@ -82,7 +81,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
           void this._handleSaveAll(msg.target, msg.entries);
           break;
         case 'stateChanged':
-          this._persistWebviewState(msg.states);
+          this._persistWebviewState(msg.filePath, msg.states);
           break;
       }
     });
@@ -94,8 +93,11 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     this._render();
   }
 
-  private _persistWebviewState(states: Record<string, { source: string; customValue: string }>): void {
-    if (!this._activeFilePath) return;
+  private _persistWebviewState(
+    filePath: string | undefined,
+    states: Record<string, { source: string; customValue: string }>
+  ): void {
+    if (!filePath) return;
     const stateMap = new Map<string, VarState>();
     for (const [name, val] of Object.entries(states)) {
       stateMap.set(name, {
@@ -103,7 +105,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
         customValue: val.customValue,
       });
     }
-    this._fileStates.set(this._activeFilePath, stateMap);
+    this._fileStates.set(filePath, stateMap);
   }
 
   private async _handleSaveVar(name: string, value: string): Promise<void> {
@@ -122,16 +124,25 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     this.notifySaved(entries.map((e) => e.name), target);
   }
 
-  public setActiveFile(filePath: string | undefined, content: string): void {
-    if (this._pinned) {
-      if (filePath === this._activeFilePath) {
+  public setActiveFile(
+    filePath: string | undefined,
+    content: string,
+    opts?: { explicit?: boolean }
+  ): void {
+    const explicit = opts?.explicit === true;
+    const fileChanged = filePath !== this._activeFilePath;
+    const contentChanged = content !== this._activeContent;
+
+    if (!explicit && !this._autoPickup) {
+      if (!fileChanged && contentChanged) {
         this._activeContent = content;
         this._view?.webview.postMessage({ type: 'contentUpdate', content });
       }
       return;
     }
 
-    const fileChanged = filePath !== this._activeFilePath;
+    if (!fileChanged && !contentChanged) return;
+
     this._activeFilePath = filePath;
     this._activeContent = content;
     if (!this._view) return;
@@ -142,6 +153,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
       const fileName = filePath ? path.basename(filePath) : '';
       this._view.webview.postMessage({
         type: 'fileSwitch',
+        filePath: filePath ?? '',
         content,
         fileName,
         savedState: stateObj,
@@ -207,6 +219,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
 
     const envJson = JSON.stringify(this._envSnapshot());
     const savedStateJson = this._savedStateJson();
+    const currentFilePathJson = JSON.stringify(this._activeFilePath ?? '');
 
     this._view.webview.html = /*html*/ `<!DOCTYPE html>
 <html lang="en">
@@ -349,6 +362,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   let content = \`${content}\`;
   let env = ${envJson};
   let savedState = ${savedStateJson};
+  let currentFilePath = ${currentFilePathJson};
 
   const varStates = {};
 
@@ -434,12 +448,13 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
   }
 
   function notifyStateChanged() {
+    if (!currentFilePath) return;
     const states = {};
     for (const name of Object.keys(varStates)) {
       const st = varStates[name];
       states[name] = { source: st.selectedSource, customValue: st.customValue };
     }
-    vscode.postMessage({ type: 'stateChanged', states });
+    vscode.postMessage({ type: 'stateChanged', filePath: currentFilePath, states });
   }
 
   function makeSrcBtn(kind, state, name) {
@@ -638,6 +653,7 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     } else if (msg.type === 'fileSwitch') {
       content = msg.content;
       savedState = msg.savedState;
+      currentFilePath = msg.filePath || '';
       for (const key of Object.keys(varStates)) {
         delete varStates[key];
       }
