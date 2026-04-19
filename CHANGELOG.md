@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-04-19
+
+### Fixed
+
+- **Custom variable values lost on fast prompt switching.** A race in async webview messaging could save one prompt's custom values into another prompt's state slot. State-change messages now carry the originating file path, so values always land in the correct slot regardless of how fast you switch between prompts.
+- **Inspector stuck on the previous file after re-focusing an editor tab.** Clicking inside editor content now re-syncs the inspector via an extra `onDidChangeTextEditorSelection` listener, covering the case where `onDidChangeActiveTextEditor` doesn't fire (returning focus to an already-active tab).
+
+### Changed
+
+- **Pin / Unpin Inspector replaced with Auto-Pickup toggle.** The header button no longer locks the inspector to one file; instead it toggles whether the inspector auto-follows `.md` files opened in the editor. Default **on** preserves the previous unpinned behaviour; **off** decouples the inspector from the editor but still lets explicit Prompt Explorer selections update it (old pinned mode ignored those too). Context key `prompta.inspectorPinned` → `prompta.inspectorAutoPickup`; commands `prompta.inspector.pin`/`unpin` → `prompta.inspector.enableAutoPickup`/`disableAutoPickup`; icons `$(pin)`/`$(pinned)` → `$(sync-ignored)`/`$(sync)`.
+- Tree-view commands (`Open in Inspector`, `Open in Pane`, `Edit`) now set the inspector's active file explicitly, so they keep working even when Auto-Pickup is off.
+
 ## 0.3.0 — 2026-04-17
 
 ### Changed
