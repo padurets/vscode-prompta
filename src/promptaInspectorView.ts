@@ -531,10 +531,12 @@ export class PromptaInspectorView implements vscode.WebviewViewProvider, vscode.
     input.value = resolveValue(name);
 
     input.addEventListener('input', () => {
-      if (state.selectedSource !== 'custom') {
-        state.selectedSource = 'custom';
+      const st = varStates[name];
+      if (!st) return;
+      if (st.selectedSource !== 'custom') {
+        st.selectedSource = 'custom';
       }
-      state.customValue = input.value;
+      st.customValue = input.value;
       autoResize(input);
       redrawRow(name);
       notifyStateChanged();
