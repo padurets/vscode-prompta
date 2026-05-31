@@ -2,7 +2,7 @@
   "name": "prompta",
   "displayName": "Prompta",
   "description": "Organize and compose AI prompts with reusable variables",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "padurets",
   "license": "MIT",
   "repository": {

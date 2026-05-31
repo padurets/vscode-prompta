@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — 2026-05-31
+
+### Fixed
+
+- **Custom variable values silently ignored after switching prompts.** When a new prompt reused an existing variable row (same variable name as the previous prompt), the input field kept an event handler bound to the previous prompt's now-discarded state object. Typing wrote into that orphaned object, so the value never reached the live state: the copy output skipped the variable, the save icon never appeared, and switching the global/project/custom source had no effect. The input handler now resolves the current state by variable name at edit time, so edits always land in the active prompt's state.
+
 ## 0.4.0 — 2026-04-19
 
 ### Fixed

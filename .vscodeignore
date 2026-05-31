@@ -9,3 +9,7 @@ package-lock.json
 .git/**
 **/*.ts
 temp/**
+.docs-local/**
+.prompta/**
+.claude/**
+.vscodeignore
